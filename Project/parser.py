@@ -12,6 +12,7 @@
 # -----------------------------------------------------------------
 
 import sys, os
+import numpy as np
 import itertools
 
 class Parser:
@@ -20,7 +21,6 @@ class Parser:
     # them, while the production is on going.
     # -----------------------------------------------------------------
     def __init__(self):
-        self.EPSILON = "ε"
         self.rules = {}
         # derivations: all productions as a key, value pairs
         self.derivations = {} 
@@ -34,9 +34,11 @@ class Parser:
         self.unit_productions = []
         # list of yZ || Yz type 
         self.mixed_type = []
-
+        # Load Grammar from text file...
         self.load_grammar("./grammar.cfg")
-        print(self.derivations)
+        # Constants
+        self.EPSILON = "ε"
+        self.start_symbol = list(self.derivations.keys())[0]
         self.converter(self.derivations)
 
 
@@ -72,6 +74,7 @@ class Parser:
         with open(filename) as grammar:
             unit_rules = grammar.readlines()
         list_of_rules = list(map(self.lhs_rhs, unit_rules))
+        print(list_of_rules)
         rhs = list(self.derivations.values())
         self.non_terminals = list(set(self.derivations.keys()))
         self.terminals = self.find_terminals(rhs, self.non_terminals)
@@ -91,18 +94,30 @@ class Parser:
     # III) (non−terminal) -> (terminal)
     # -----------------------------------------------------------------
     def find_lhs(self, grammar, term):
+        lhs_list = list()
         for value in list(grammar.items()):
             for symbol in value[1]:
                 if( term in symbol ):
-                    return value[0]
+                    lhs_list.append(value[0])
+        return lhs_list
+
 
     def new_productions(self, prev, new):
         flatten = [item for sublist in new for item in sublist if item != self.EPSILON]
         production = [[p, n] for p in prev for n in flatten ]
         return production
 
+    
+    def is_start_symbol_in_rhs(self, grammar):
+        for value in list(grammar.items()):
+            for symbol in value[1]:
+                if( self.start_symbol in symbol ):
+                    return True
+                else:
+                    return False
 
     def is_epsilon_exist(self, grammar):
+        # TODO: REFACTOR this part
         temp_epsilons = list()
         addition = list()
         items = grammar.items()
@@ -111,34 +126,64 @@ class Parser:
                 if( self.EPSILON in symbol ):
                     addition = grammar[rule][:]
                     grammar[rule].remove(symbol)
-                    self.epsilons[rule] = grammar[rule]
-                    temp_epsilons.append(rule)
-        
-        for check_symbol in temp_epsilons:
+                    """
+                    l = self.find_lhs(grammar, rule).pop()
+                    temp = list()
+                    grammar[l].append([self.EPSILON])
+                    rule_container = list()
+                    for symbols in grammar[l]:
+                        temp.append(symbols)
+                        if(rule in symbols):
+                            rule_container.append(rule)
+                            temp.append(symbols)
+                            #symbols.remove(rule)
+                    grammar[l] = temp
+
+                    #self.epsilons[rule] = grammar[rule]
+                    #if(rule not in temp_epsilons):
+                    #    temp_epsilons.append(rule)"""
+        """ for check_symbol in temp_epsilons:
             for rule in items:
                 for r in rule[1]:
-                    if( check_symbol in r ):
-                        for _ in range(r.count(check_symbol)):
-                            index = grammar[rule[0]].index(r)
-                            del grammar[rule[0]][index]
-                            r_new = r[:]
-                            r_new.remove(check_symbol)
-                            if(r_new):
-                                production = self.new_productions(r_new, addition)
-                                r_new = [r_new] + production
-                            else:
-                                r_new += grammar[check_symbol]
-                            grammar[rule[0]] += r_new
-                        print(r)
-                        
+                    r_new = r[:]
+                    index = grammar[rule[0]].index(r)
+                    if( check_symbol in r_new ):
+                        #print(rule, " ---> ", index)
+                        r_new.remove(check_symbol)
+                        if(r_new):
+                            production = self.new_productions(r_new, addition)
+                            for i in production:
+                                if(check_symbol in i):
+                                    i.remove(check_symbol)
+                                    production = self.new_productions(i, addition)
+                            r_new = [r_new] + production
+                        else:
+                            grammar[rule[0]].append([self.EPSILON])
+                            r_new += grammar[check_symbol]
+                        grammar[rule[0]] += r_new
+                        del grammar[rule[0]][index] """
 
 
     def is_unit_production_exist(self, grammar):
-        for rule in list(grammar.values()):
-            for symbol in rule:
-                non_terminals = [n_t for n_t in symbol if n_t in self.non_terminals]
-                if( len( symbol ) == 1 and non_terminals ):
-                    self.unit_productions.append(symbol)
+        lhs = list()
+        rhs = list()
+        for rule in list(grammar.items()):
+            for i, symbol in enumerate(rule[1]):
+                if( len(symbol) == 1 ):
+                    if(symbol[0] in self.non_terminals):
+                        if(rule[0] not in lhs):
+                            lhs.append(rule[0])
+                        if(symbol[0] not in rhs):
+                            rhs.append(symbol[0])
+
+        for left in lhs:
+            for right in rhs:
+                if [right] in grammar[left]:
+                    index = grammar[left].index([right])
+                    grammar[left].pop(index)
+                    for z in grammar[right]:
+                        grammar[left].append(z)
+
 
 
     def is_mixed_terminals_exist(self, grammar):
@@ -146,12 +191,43 @@ class Parser:
         # (non−terminal) -> (terminal)(non−terminal)
         #                  ~ OR ~
         # (non−terminal) -> (non-terminal)(terminal)))
-        # X -> yZ || X -> Zy
-        for rule in list(grammar.values()):
-            for symbol in rule:
-                terminals = [t for t in symbol if t in self.terminals]
-                if( ( len( symbol ) == 2 ) and terminals ):
-                    self.mixed_type.append(rule)
+        #                  ~ OR ~
+        # (non−terminal) -> (non-terminal)(non-terminal)(non-terminal)...
+        # X -> yZ || X -> Zy || X -> A B C...
+        index = 1
+        long_productions = []
+        removed_prod = []
+        for rule in list(grammar.items()):
+            for symbol in rule[1]:
+                if len(symbol) > 2 and symbol not in long_productions:
+                    long_productions.append(symbol)
+                for prod in long_productions:
+                    if len(prod)>2:
+                        left = self.find_lhs(grammar, rule)
+                        for times in range(2):
+                            removed_prod.append(prod[0])
+                            prod.remove(prod[0]) 
+                        #creates new rule name (ex: N1,N2..etc.)
+                        new_rule = f"{'N'}{str(index)}"
+                        index += 1
+                        self.rules[new_rule] = [removed_prod]
+                        rule[1].append([removed_prod])
+                        self.non_terminals.append(new_rule)
+                        prod.insert(0,new_rule)
+        index = 1                    
+        for nt in list(grammar.items()):
+            print(nt)
+            for symbol in nt[1]:
+                if len(symbol) > 1:
+                    for item in symbol:
+                        if item in self.terminals:
+                            position = symbol.index(item)
+                            symbol.remove(item)
+                            new_rule = f"{'N'}{str(index)}"
+                            index += 1
+                            grammar[new_rule] = [list(item)]
+                            symbol.insert(position,new_rule)
+                            self.non_terminals.append(new_rule)
             
     # -----------------------------------------------------------------
     # Converts a given CFG formatted grammar into the form of CNF.
@@ -172,19 +248,16 @@ class Parser:
     def converter( self, grammar ):
         converted_grammar = dict()
         rules = list(grammar.items())
+        if(self.is_start_symbol_in_rhs(grammar)):
+            new_rule = f"{self.start_symbol}'"
+            grammar[new_rule] = [[self.start_symbol]]
         self.is_epsilon_exist(grammar)
         self.is_unit_production_exist(grammar)
         self.is_mixed_terminals_exist(grammar)
-
-        print(grammar)
         #if(self.epsilons):
         #    for epsilon in self.epsilons:
         #        symbols = [ for e in rules[1]]
-
-        #epsilon in [x for v in values for x in v if type(v)==list]
-        #self.is_unit_production_exist(rule)
-        #self.is_mixed_terminals_exist(rule)
-
+        print("\nGRAMMAR:\n",grammar)
 
 
 if __name__ == '__main__':
