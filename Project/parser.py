@@ -11,8 +11,9 @@
 # parser( list_of_rules::List, sentence::String ) --> parse_tree::String
 # -----------------------------------------------------------------
 
+# -*- coding: utf-8 -*-
+
 import sys, os
-import numpy as np
 import itertools
 
 class Parser:
@@ -32,14 +33,17 @@ class Parser:
         self.epsilons = {}
         # list of unit_productions 
         self.unit_productions = []
-        # list of yZ || Yz type 
+        # list of yZ or Yz type
         self.mixed_type = []
+        # Sentences
+        self.sentences = []
         # Load Grammar from text file...
-        self.load_grammar("./grammar.cfg")
+        self.load_grammar("./grammar.txt")
         # Constants
         self.EPSILON = "ε"
         self.start_symbol = list(self.derivations.keys())[0]
         self.converter(self.derivations)
+        self.cyk_parser(self.derivations)
 
 
     # -----------------------------------------------------------------
@@ -74,7 +78,6 @@ class Parser:
         with open(filename) as grammar:
             unit_rules = grammar.readlines()
         list_of_rules = list(map(self.lhs_rhs, unit_rules))
-        print(list_of_rules)
         rhs = list(self.derivations.values())
         self.non_terminals = list(set(self.derivations.keys()))
         self.terminals = self.find_terminals(rhs, self.non_terminals)
@@ -186,7 +189,7 @@ class Parser:
 
 
 
-    def is_mixed_terminals_exist(self, grammar):
+    def is_long_productions_exist(self, grammar):
         # in form of: 
         # (non−terminal) -> (terminal)(non−terminal)
         #                  ~ OR ~
@@ -194,40 +197,35 @@ class Parser:
         #                  ~ OR ~
         # (non−terminal) -> (non-terminal)(non-terminal)(non-terminal)...
         # X -> yZ || X -> Zy || X -> A B C...
-        index = 1
-        long_productions = []
+        index = 0
+        productions = []
         removed_prod = []
         for rule in list(grammar.items()):
             for symbol in rule[1]:
-                if len(symbol) > 2 and symbol not in long_productions:
-                    long_productions.append(symbol)
-                for prod in long_productions:
-                    if len(prod)>2:
+                if len(symbol) > 2 and symbol not in productions:
+                    productions.append(symbol)
+                for prod in productions:
+                    if len(symbol) > 1:
+                        for item in symbol:
+                            if item in self.terminals:
+                                position = symbol.index(item)
+                                symbol.remove(item)
+                                new_rule = f"{'NR'}{str(index)}"
+                                index += 1
+                                grammar[new_rule] = [list(item)]
+                                symbol.insert(position,new_rule)
+                                self.non_terminals.append(new_rule)
+                    if len(prod) > 3:
                         left = self.find_lhs(grammar, rule)
                         for times in range(2):
                             removed_prod.append(prod[0])
                             prod.remove(prod[0]) 
-                        #creates new rule name (ex: N1,N2..etc.)
-                        new_rule = f"{'N'}{str(index)}"
-                        index += 1
+                        new_rule = f"{'NR'}{str(index)}"
                         self.rules[new_rule] = [removed_prod]
                         rule[1].append([removed_prod])
                         self.non_terminals.append(new_rule)
                         prod.insert(0,new_rule)
-        index = 1                    
-        for nt in list(grammar.items()):
-            print(nt)
-            for symbol in nt[1]:
-                if len(symbol) > 1:
-                    for item in symbol:
-                        if item in self.terminals:
-                            position = symbol.index(item)
-                            symbol.remove(item)
-                            new_rule = f"{'N'}{str(index)}"
-                            index += 1
-                            grammar[new_rule] = [list(item)]
-                            symbol.insert(position,new_rule)
-                            self.non_terminals.append(new_rule)
+                        index += 1
             
     # -----------------------------------------------------------------
     # Converts a given CFG formatted grammar into the form of CNF.
@@ -253,11 +251,20 @@ class Parser:
             grammar[new_rule] = [[self.start_symbol]]
         self.is_epsilon_exist(grammar)
         self.is_unit_production_exist(grammar)
-        self.is_mixed_terminals_exist(grammar)
+        self.is_long_productions_exist(grammar)
         #if(self.epsilons):
         #    for epsilon in self.epsilons:
         #        symbols = [ for e in rules[1]]
         print("\nGRAMMAR:\n",grammar)
+
+
+    def cyk_parser(self, grammar):
+        with open("sentence.txt") as first_sentences:
+            sentences = first_sentences.readlines()
+            for i in sentences:
+                self.sentences.append(i.split())
+        
+        print(self.sentences)
 
 
 if __name__ == '__main__':
