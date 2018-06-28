@@ -31,8 +31,10 @@ class CNF(object):
         
         #-----------------------------------------------
         # Load Grammar from text file...
-        print(self.load_grammar("./grammar.txt"))
+        self.load_grammar("./grammar.txt")
         print(self.find_epsilon_productions())
+        self._eliminate_epsilon_productions()
+        print(self.rules)
         #-----------------------------------------------
 
     def define_start_symbol(self, symbol):
@@ -93,6 +95,49 @@ class CNF(object):
             # Delete epsilon rule from RHS
             del self.rules[lhs][index]
             #-----------------------------------------------
+
+            # Create the new productions for the rules that 
+            # contains the LHS non-terminals which has 
+            # EPSILON rule.
+            for symbol in self.rules:
+                no_epsilon = list()
+                for possible_lhs_of_rule in self.rules[symbol]:
+                    number_of_epsilon_carrier = possible_lhs_of_rule.count(lhs)
+                    if (number_of_epsilon_carrier == 0) and (possible_lhs_of_rule not in no_epsilon):
+                        no_epsilon.append(possible_lhs_of_rule)
+                    else:
+                        new_productions = self._create_new_productions(
+                                rule = possible_lhs_of_rule,
+                                lhs = lhs,
+                                count = number_of_epsilon_carrier
+                            )
+                        if new_productions not in no_epsilon:
+                            no_epsilon.extend(new_productions)
+
+                self.rules[symbol] = no_epsilon
+
+    def _create_new_productions(self, rule, lhs, count):
+        numset = 1 << count
+        new_prods = []
+
+        for i in range(numset):
+            nth_nt = 0
+            new_prod = []
+
+            for s in rule:
+                if s == lhs:
+                    if i & (1 << nth_nt):
+                        new_prod.append(s)
+                    nth_nt += 1
+                else:
+                    new_prod.append(s)
+            if len(new_prod) == 0:
+                new_prod.append(self.EPSILON)
+            new_prods.append(new_prod)
+
+        return new_prods
+
+
 
 if __name__ == '__main__':
     CNF()
