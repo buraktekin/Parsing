@@ -15,7 +15,6 @@ class CNF(object):
     5. Move all terminals to productions.
     """
 
-
     def __init__(self):
         #-----------------------------------------------
         # CONSTANTS:
@@ -25,14 +24,15 @@ class CNF(object):
         #-----------------------------------------------
         
         #-----------------------------------------------
-        # RULES: all productions as a list
+        # RULES: this turns all productions into a list 
+        # and if there is no available key then this 
+        # returns an empty list
         self.rules = defaultdict(list)
         #-----------------------------------------------
         
         #-----------------------------------------------
         # Load Grammar from text file...
         self.load_grammar("./grammar.txt")
-        print(self.find_epsilon_productions())
         self._eliminate_epsilon_productions()
         print(self.rules)
         #-----------------------------------------------
@@ -58,15 +58,21 @@ class CNF(object):
                 
                 #-----------------------------------------------
                 # Check start symbol: Rule @1
-                self.check_start_symbol_on_rhs(self.start_symbol, rhs_symbols)
+                self.check_start_symbol_on_rhs(
+                    self.start_symbol, 
+                    rhs_symbols
+                )
                 #-----------------------------------------------
         return self.rules
 
     def check_start_symbol_on_rhs(self, symbol, rhs):
+        #-----------------------------------------------
+        ''' If RHS carries the start symbol generate a new rule '''
         if symbol in rhs:
             new_symbol = symbol + "'"
             self.rules[new_symbol].append(symbol)
             self.start_symbol = new_symbol
+        #-----------------------------------------------
 
     def find_epsilon_productions(self):
         for lhs in self.rules:
@@ -103,39 +109,62 @@ class CNF(object):
                 no_epsilon = list()
                 for possible_lhs_of_rule in self.rules[symbol]:
                     number_of_epsilon_carrier = possible_lhs_of_rule.count(lhs)
-                    if (number_of_epsilon_carrier == 0) and (possible_lhs_of_rule not in no_epsilon):
+                    if (number_of_epsilon_carrier == 0) & (possible_lhs_of_rule not in no_epsilon):
                         no_epsilon.append(possible_lhs_of_rule)
                     else:
                         new_productions = self._create_new_productions(
                                 rule = possible_lhs_of_rule,
                                 lhs = lhs,
-                                count = number_of_epsilon_carrier
+                                number_of_epsilon = number_of_epsilon_carrier
                             )
                         if new_productions not in no_epsilon:
                             no_epsilon.extend(new_productions)
 
                 self.rules[symbol] = no_epsilon
 
-    def _create_new_productions(self, rule, lhs, count):
-        numset = 1 << count
-        new_prods = []
+    def _create_new_productions(self, rule, lhs, number_of_epsilon):
+        ''' 
+            NOTE:
+            ( !! VERY CHALLENGING !! POSSIBLY NEED A REFACTORING )
+            Lets say we have rules like B -> ... | ε and S -> BS then
+            the following productions should be generated:
+                S -> BS | S
+                    |- 2 new productions -|
 
-        for i in range(numset):
+            2. if B -> ... | ε and S -> BSB then
+                S -> BSB | BS | SB | S
+                    |- 4 new productions -|
+            
+            3. if B -> ... | ε and S -> BSBSB then
+                S -> BSBSB | SBSB | BSSB | BSBS | SSB | BSS | SBS | SS
+                    |---------------- 8 new productions --------------|
+
+            ... and so on.
+
+            As you can see the number of new productions changes by the nth 
+            power of 2 where n is the number of non-terminals which has ε production.
+            So, while we creating new productions we would create 2^n new productions
+            for the production carrying ε production and replace that production with
+            the output.
+        '''
+
+        number_of_productions = 2 ** number_of_epsilon
+        list_of_new_productions = []
+
+        for i in range(number_of_productions):
             nth_nt = 0
-            new_prod = []
-
+            new_production = []
             for s in rule:
                 if s == lhs:
-                    if i & (1 << nth_nt):
-                        new_prod.append(s)
+                    if i & (2 ** nth_nt):
+                        new_production.append(s)
                     nth_nt += 1
                 else:
-                    new_prod.append(s)
-            if len(new_prod) == 0:
-                new_prod.append(self.EPSILON)
-            new_prods.append(new_prod)
-
-        return new_prods
+                    new_production.append(s)
+            if len(new_production) == 0:
+                new_production.append(self.EPSILON)
+            list_of_new_productions.append(new_production)
+        return list_of_new_productions
 
 
 
