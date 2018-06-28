@@ -21,6 +21,7 @@ class CNF(object):
         self.EPSILON = "ε"
         self.start_symbol = None
         self.filename = "grammar.txt"
+        self.non_terminals = list()
         #-----------------------------------------------
         
         #-----------------------------------------------
@@ -34,6 +35,7 @@ class CNF(object):
         # Load Grammar from text file...
         self.load_grammar("./grammar.txt")
         self._eliminate_epsilon_productions()
+        self._eliminate_unit_productions()
         print(self.rules)
         #-----------------------------------------------
 
@@ -49,6 +51,7 @@ class CNF(object):
                 # Split lhs and rhs of the rules to
                 # create a dictionary of rules
                 lhs, rhs = rule.strip().split(" -> ")
+                self.non_terminals.append(lhs)
                 rhs_symbols = rhs.strip().split(" | ")
                 if rules.index(rule) == 0:
                     self.start_symbol = lhs
@@ -70,7 +73,7 @@ class CNF(object):
         ''' If RHS carries the start symbol generate a new rule '''
         if symbol in rhs:
             new_symbol = symbol + "'"
-            self.rules[new_symbol].append(symbol)
+            self.rules[new_symbol].append([symbol])
             self.start_symbol = new_symbol
         #-----------------------------------------------
 
@@ -166,6 +169,13 @@ class CNF(object):
             list_of_new_productions.append(new_production)
         return list_of_new_productions
 
+    def _eliminate_unit_productions(self):
+        for lhs in self.rules:
+            for index, rhs in enumerate(self.rules[lhs]):
+                terminals = [symbol for symbol in rhs if symbol not in self.non_terminals]
+                print("Terminals: ", terminals)
+                if(len(rhs) == 1):
+                    print(self.non_terminals, rhs)
 
 
 if __name__ == '__main__':
