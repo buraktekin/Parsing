@@ -37,6 +37,7 @@ class CNF(object):
         self.load_grammar("./grammar.txt")
         self._eliminate_epsilon_productions()
         self._eliminate_unit_productions()
+        self._eliminate_terminal_with_nonterminal()
         print(f"\n\n{self.rules}")
         #-----------------------------------------------
 
@@ -194,8 +195,13 @@ class CNF(object):
     def _find_unit_productions(self):
         for lhs in self.rules:
             for index, rhs in enumerate(self.rules[lhs]):
-                if(len(rhs) == 1 and rhs[0] in self.non_terminals):
-                    return lhs, index
+                if(len(rhs) == 1):
+                    if rhs[0] in self.non_terminals:
+                        return lhs, index
+                    else:
+                        self.terminals.append(rhs[0])
+                        # remove duplicates
+                        self.terminals = list(set(self.terminals))
         
         return None, None
 
@@ -226,6 +232,44 @@ class CNF(object):
     # END OF UNIT PRODUCTION
     #-----------------------------------------------
 
+    #-----------------------------------------------
+    # FIND A RULE THAT A TERMINAL IS COMBINED WITH A
+    # NON-TERMINAL
+    def _find_terminal_with_nonterminal(self):
+        for lhs in self.rules:
+            for index, rhs in enumerate(self.rules[lhs]):
+                if(len(rhs) == 2):
+                    for symbol in rhs:
+                        if symbol in self.terminals:
+                            symbol_index = self.rules[lhs][index].index(symbol)
+                            return lhs, index, symbol_index
+        
+        return None, None, None
+
+    def _eliminate_terminal_with_nonterminal(self):
+        while True:
+            # Get the production rules have unit productions 
+            # in it.
+            lhs, index, symbol_index = self._find_terminal_with_nonterminal()
+            #-----------------------------------------------
+            # NOTE:
+            # if find_unit_productions returns nothing 
+            # for LHS then break the loop.
+            if lhs is None:
+                break
+            #-----------------------------------------------
+
+            #-----------------------------------------------
+            # Copy the one to be deleted and delete that unit
+            # rule from corresponding RHS
+            new_rule_lhs = f"{lhs + str(index) + str(symbol_index)}"
+            self.rules[new_rule_lhs] = self.rules[lhs][index][symbol_index]
+            del self.rules[lhs][index][symbol_index]
+            self.rules[lhs][index].insert(symbol_index, new_rule_lhs)
+            #-----------------------------------------------
+            # DONE
+    # END OF TERMINAL WITH NONTERMINAL
+    #-----------------------------------------------
 
 if __name__ == '__main__':
     CNF()
