@@ -18,28 +18,27 @@ class CNF(object):
     def __init__(self):
         #-----------------------------------------------
         # CONSTANTS:
+        self.id = 0
         self.EPSILON = "ε"
         self.start_symbol = None
         self.filename = "grammar.txt"
         self.non_terminals = list()
         self.terminals = list()
         #-----------------------------------------------
-        
-        #-----------------------------------------------
+        # NOTE:
         # RULES: this turns all productions into a list 
         # and if there is no available key then this 
         # returns an empty list
         self.rules = defaultdict(list)
         #-----------------------------------------------
-        
-        #-----------------------------------------------
+        # NOTE:
         # Load Grammar from text file...
         self.load_grammar("./grammar.txt")
         self._eliminate_epsilon_productions()
         self._eliminate_unit_productions()
         self._eliminate_terminal_with_nonterminal()
+        self._eliminate_longer_productions()
         print(f"\n\n{self.rules}")
-        #-----------------------------------------------
 
     #-----------------------------------------------
     # FIND AND DEFINE THE START SYMBOL
@@ -66,8 +65,7 @@ class CNF(object):
                 for r in rhs_symbols:
                     self.rules[lhs].append(r.split())
                 #-----------------------------------------------
-                
-                #-----------------------------------------------
+                # NOTE:
                 # Check start symbol: Rule @1
                 self.check_start_symbol_on_rhs(
                     self.start_symbol, 
@@ -117,8 +115,7 @@ class CNF(object):
             if lhs is None:
                 break
             #-----------------------------------------------
-            
-            #-----------------------------------------------
+            # NOTE: 
             # Delete epsilon rule from RHS
             del self.rules[lhs][index]
             #-----------------------------------------------
@@ -218,8 +215,7 @@ class CNF(object):
             if lhs is None:
                 break
             #-----------------------------------------------
-
-            #-----------------------------------------------
+            # NOTE:
             # Copy the one to be deleted and delete that unit
             # rule from corresponding RHS
             removing_part = self.rules[lhs][index][:]
@@ -231,8 +227,7 @@ class CNF(object):
             # DONE
     # END OF UNIT PRODUCTION
     #-----------------------------------------------
-
-    #-----------------------------------------------
+    # NOTE:
     # FIND A RULE THAT A TERMINAL IS COMBINED WITH A
     # NON-TERMINAL
     def _find_terminal_with_nonterminal(self):
@@ -258,18 +253,79 @@ class CNF(object):
             if lhs is None:
                 break
             #-----------------------------------------------
-
-            #-----------------------------------------------
+            # NOTE:
             # Copy the one to be deleted and delete that unit
             # rule from corresponding RHS
-            new_rule_lhs = f"{lhs + str(index) + str(symbol_index)}"
-            self.rules[new_rule_lhs] = self.rules[lhs][index][symbol_index]
+            new_rule_lhs = f"NR{str(self.id)}"
+            self.id += 1
+            self.rules[new_rule_lhs] = [[self.rules[lhs][index][symbol_index]]]
             del self.rules[lhs][index][symbol_index]
             self.rules[lhs][index].insert(symbol_index, new_rule_lhs)
             #-----------------------------------------------
             # DONE
     # END OF TERMINAL WITH NONTERMINAL
     #-----------------------------------------------
+
+    #-----------------------------------------------
+    # FIND A RULE THAT RHS HAS MORE THAN 2 SYMBOLS
+    def _find_longer_productions(self):
+        for lhs in self.rules:
+            for index, rhs in enumerate(self.rules[lhs]):
+                if(len(rhs) > 2):
+                    return lhs, index
+        
+        return None, None
+
+    def _eliminate_longer_productions(self):
+        mem = list()
+        while True:
+            # Get the production rules have unit productions 
+            # in it.
+            lhs, index = self._find_longer_productions()
+            #-----------------------------------------------
+            # NOTE:
+            # if find_unit_productions returns nothing 
+            # for LHS then break the loop.
+            if lhs is None:
+                break
+
+            if self.rules[lhs][index] not in mem:
+                mem.append(self.rules[lhs][index])
+                self._generate_shorter_rules(self.rules[lhs][index])
+            #-----------------------------------------------
+            # Copy the one to be deleted and delete that unit
+            # rule from corresponding RHS
+            # rhs = self.rules[lhs][index][:]
+            #-----------------------------------------------
+            # NOTE: 
+            # Create a new rule
+            # new_rule_lhs = f"NR{str(self.id)}"
+            # self.id += 1
+            
+            #-----------------------------------------------
+            # DONE
+    # END OF TERMINAL WITH NONTERMINAL
+    #-----------------------------------------------
+
+    def _find_lhs_from_rhs(self, rhs_rule):
+        temp_lhs = list()
+        for lhs in self.rules:
+            if rhs_rule in self.rules[lhs]:
+                temp_lhs.append(lhs)
+        return temp_lhs
+
+    def _generate_shorter_rules(self, rhs):
+        pop_index = 0
+        new_production = list()
+        while len(new_production) < 2:
+            item = rhs.pop(pop_index)
+            new_production.append(item)
+        new_rule_lhs = f"NR{str(self.id)}"
+        self.id += 1
+        rhs.insert(pop_index, new_rule_lhs)
+        self.rules[new_rule_lhs] = new_production
+
+
 
 if __name__ == '__main__':
     CNF()
