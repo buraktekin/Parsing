@@ -22,6 +22,7 @@ class CNF(object):
         self.start_symbol = None
         self.filename = "grammar.txt"
         self.non_terminals = list()
+        self.terminals = list()
         #-----------------------------------------------
         
         #-----------------------------------------------
@@ -36,12 +37,18 @@ class CNF(object):
         self.load_grammar("./grammar.txt")
         self._eliminate_epsilon_productions()
         self._eliminate_unit_productions()
-        print(self.rules)
+        print(f"\n\n{self.rules}")
         #-----------------------------------------------
 
+    #-----------------------------------------------
+    # FIND AND DEFINE THE START SYMBOL
     def define_start_symbol(self, symbol):
         self.start_symbol = symbol
-    
+    # END OF START SYMBOL DEFINITION
+    #-----------------------------------------------
+
+    #-----------------------------------------------
+    # LOAD GRAMMAR FROM A FILE
     def load_grammar(self, filename):
         self.filename = filename
         with open(self.filename, "r") as grammar:
@@ -67,7 +74,12 @@ class CNF(object):
                 )
                 #-----------------------------------------------
         return self.rules
+        # DONE
+    # END OF LOADING THE GRAMMAR
+    #-----------------------------------------------
 
+    #-----------------------------------------------
+    # FIND AND ELIMINATE RHS START SYMBOLS
     def check_start_symbol_on_rhs(self, symbol, rhs):
         #-----------------------------------------------
         ''' If RHS carries the start symbol generate a new rule '''
@@ -75,8 +87,13 @@ class CNF(object):
             new_symbol = symbol + "'"
             self.rules[new_symbol].append([symbol])
             self.start_symbol = new_symbol
-        #-----------------------------------------------
+        # DONE
+    # END OF RHS START SYMBOL
+    #-----------------------------------------------
 
+
+    #-----------------------------------------------
+    # FIND AND ELIMINATE EPSILON PRODUCTIONS
     def find_epsilon_productions(self):
         for lhs in self.rules:
             if not self.start_symbol is None and lhs == self.start_symbol:
@@ -110,13 +127,13 @@ class CNF(object):
             # EPSILON rule.
             for symbol in self.rules:
                 no_epsilon = list()
-                for possible_lhs_of_rule in self.rules[symbol]:
-                    number_of_epsilon_carrier = possible_lhs_of_rule.count(lhs)
-                    if (number_of_epsilon_carrier == 0) & (possible_lhs_of_rule not in no_epsilon):
-                        no_epsilon.append(possible_lhs_of_rule)
+                for possible_rhs_of_rule in self.rules[symbol]:
+                    number_of_epsilon_carrier = possible_rhs_of_rule.count(lhs)
+                    if (number_of_epsilon_carrier == 0) & (possible_rhs_of_rule not in no_epsilon):
+                        no_epsilon.append(possible_rhs_of_rule)
                     else:
                         new_productions = self._create_new_productions(
-                                rule = possible_lhs_of_rule,
+                                rhs = possible_rhs_of_rule,
                                 lhs = lhs,
                                 number_of_epsilon = number_of_epsilon_carrier
                             )
@@ -124,8 +141,9 @@ class CNF(object):
                             no_epsilon.extend(new_productions)
 
                 self.rules[symbol] = no_epsilon
+                # DONE
 
-    def _create_new_productions(self, rule, lhs, number_of_epsilon):
+    def _create_new_productions(self, rhs, lhs, number_of_epsilon):
         ''' 
             NOTE:
             ( !! VERY CHALLENGING !! POSSIBLY NEED A REFACTORING )
@@ -157,7 +175,7 @@ class CNF(object):
         for i in range(number_of_productions):
             nth_nt = 0
             new_production = []
-            for s in rule:
+            for s in rhs:
                 if s == lhs:
                     if i & (2 ** nth_nt):
                         new_production.append(s)
@@ -168,14 +186,45 @@ class CNF(object):
                 new_production.append(self.EPSILON)
             list_of_new_productions.append(new_production)
         return list_of_new_productions
+    # END OF EPSILON PRODUCTION
+    #-----------------------------------------------
 
-    def _eliminate_unit_productions(self):
+    #-----------------------------------------------
+    # FIND UNIT PRODUCTIONS ON THE FLY    
+    def _find_unit_productions(self):
         for lhs in self.rules:
             for index, rhs in enumerate(self.rules[lhs]):
-                terminals = [symbol for symbol in rhs if symbol not in self.non_terminals]
-                print("Terminals: ", terminals)
-                if(len(rhs) == 1):
-                    print(self.non_terminals, rhs)
+                if(len(rhs) == 1 and rhs[0] in self.non_terminals):
+                    return lhs, index
+        
+        return None, None
+
+    def _eliminate_unit_productions(self):
+        while True:
+            # Get the production rules have unit productions 
+            # in it.
+            lhs, index = self._find_unit_productions()
+            
+            #-----------------------------------------------
+            # NOTE:
+            # if find_unit_productions returns nothing 
+            # for LHS then break the loop.
+            if lhs is None:
+                break
+            #-----------------------------------------------
+
+            #-----------------------------------------------
+            # Copy the one to be deleted and delete that unit
+            # rule from corresponding RHS
+            removing_part = self.rules[lhs][index][:]
+            del self.rules[lhs][index]
+            #-----------------------------------------------
+
+            if removing_part[0] != lhs:
+                self.rules[lhs] += self.rules[removing_part[0]]
+            # DONE
+    # END OF UNIT PRODUCTION
+    #-----------------------------------------------
 
 
 if __name__ == '__main__':
