@@ -82,8 +82,9 @@ class CNF(object):
         #-----------------------------------------------
         ''' If RHS carries the start symbol generate a new rule '''
         if symbol in rhs:
-            new_symbol = symbol + "'"
-            self.rules[new_symbol].append([symbol])
+            new_symbol = f"{symbol}{self.id}"
+            self.id += 1
+            self.rules[new_symbol].insert(0, [symbol])
             self.start_symbol = new_symbol
         # DONE
     # END OF RHS START SYMBOL
@@ -295,6 +296,7 @@ class CNF(object):
                 mem.append(self.rules[lhs][index])
                 self._generate_shorter_rules(self.rules[lhs][index])
             # DONE
+            
     def _generate_shorter_rules(self, rhs):
         pop_index = 0
         new_production = list()
@@ -304,14 +306,13 @@ class CNF(object):
         new_rule_lhs = f"NR{str(self.id)}"
         self.id += 1
         rhs.insert(pop_index, new_rule_lhs)
-        self.rules[new_rule_lhs] = new_production
+        self.rules[new_rule_lhs] = [new_production]
     # END OF LONGER PRODUCTIONS
     #-----------------------------------------------
 
-    # HELPER METHODS
     def _find_lhs_from_rhs(self, rhs_rule):
         temp_lhs = list()
-        for lhs in self.rules:
+        for lhs in self.rules.keys():
             if rhs_rule in self.rules[lhs]:
                 temp_lhs.append(lhs)
         return temp_lhs
