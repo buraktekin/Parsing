@@ -38,7 +38,6 @@ class CNF(object):
         self._eliminate_unit_productions()
         self._eliminate_terminal_with_nonterminal()
         self._eliminate_longer_productions()
-        print(f"\n\n{self.rules}")
 
     #-----------------------------------------------
     # FIND AND DEFINE THE START SYMBOL
@@ -227,7 +226,8 @@ class CNF(object):
             # DONE
     # END OF UNIT PRODUCTION
     #-----------------------------------------------
-    # NOTE:
+
+    #-----------------------------------------------
     # FIND A RULE THAT A TERMINAL IS COMBINED WITH A
     # NON-TERMINAL
     def _find_terminal_with_nonterminal(self):
@@ -287,33 +287,14 @@ class CNF(object):
             # if find_unit_productions returns nothing 
             # for LHS then break the loop.
             if lhs is None:
-                break
-
+                break    
+            #-----------------------------------------------
+            # NOTE:
+            # Create new productions
             if self.rules[lhs][index] not in mem:
                 mem.append(self.rules[lhs][index])
                 self._generate_shorter_rules(self.rules[lhs][index])
-            #-----------------------------------------------
-            # Copy the one to be deleted and delete that unit
-            # rule from corresponding RHS
-            # rhs = self.rules[lhs][index][:]
-            #-----------------------------------------------
-            # NOTE: 
-            # Create a new rule
-            # new_rule_lhs = f"NR{str(self.id)}"
-            # self.id += 1
-            
-            #-----------------------------------------------
             # DONE
-    # END OF TERMINAL WITH NONTERMINAL
-    #-----------------------------------------------
-
-    def _find_lhs_from_rhs(self, rhs_rule):
-        temp_lhs = list()
-        for lhs in self.rules:
-            if rhs_rule in self.rules[lhs]:
-                temp_lhs.append(lhs)
-        return temp_lhs
-
     def _generate_shorter_rules(self, rhs):
         pop_index = 0
         new_production = list()
@@ -324,8 +305,13 @@ class CNF(object):
         self.id += 1
         rhs.insert(pop_index, new_rule_lhs)
         self.rules[new_rule_lhs] = new_production
+    # END OF LONGER PRODUCTIONS
+    #-----------------------------------------------
 
-
-
-if __name__ == '__main__':
-    CNF()
+    # HELPER METHODS
+    def _find_lhs_from_rhs(self, rhs_rule):
+        temp_lhs = list()
+        for lhs in self.rules:
+            if rhs_rule in self.rules[lhs]:
+                temp_lhs.append(lhs)
+        return temp_lhs
