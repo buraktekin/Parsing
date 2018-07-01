@@ -35,8 +35,8 @@ class Parser:
         # Initialization
         self.load_sentences(self.filename)
         self._generate_strings()
+        self.bottom_up()
         print(f"\n#--------------------\n{self.cnf_rules}\n#--------------------\n")
-        self._find_cells()
 
     
     def load_sentences(self, filename):
@@ -48,11 +48,12 @@ class Parser:
     
     def _generate_row_productions(self, row, sentence):
         result = list()
+        sentence = [[x] for x in sentence]
         for index, item in enumerate(sentence):
             new_string = sentence[index:index + row]
             if len(new_string) == row:
                 if row < 3:
-                    result.append([new_string])
+                    result.append(new_string)
                 else:
                     for num in range(len(new_string) - 1):
                         temp_string = [new_string[:num + 1], new_string[num+1:]]
@@ -71,8 +72,6 @@ class Parser:
     #-----------------------------------------------
 
     def _cartesian_product(self, first, second):
-        if not first or not second:
-            return 
         result = list()
         for i in first:
             for j in second:
@@ -80,48 +79,51 @@ class Parser:
 
         return result
 
-    def _bottom_to_top(self, substrings):
-        new_row = list()
-        key = ""
-        # print("STRING: ", substrings)
-        for string in substrings:
-            cartesians = []
-            key += " ".join(str(x) for x in string)
-            if(key in self.mem):
-                cartesians = self.mem[key]
-                #print("CARTESIAN_IN_LINE:", cartesians)
-            else:
-                for terminal in range(len(string) - 1):
-                    list_of_lhs_first = CNF()._find_lhs_from_rhs([string[terminal]])
-                    list_of_lhs_second = CNF()._find_lhs_from_rhs([string[terminal + 1]])
-                    #print("terminal: ", string[terminal], " First: ", list_of_lhs_first, " Second: ", list_of_lhs_second)
-                    cartesians = self._cartesian_product(list_of_lhs_first, list_of_lhs_second)
-                    for c in cartesians:
-                        if key not in self.mem:
-                            self.mem[key].append(CNF()._find_lhs_from_rhs(c))
-                #print("CARTESIAN_IN_LINE:", cartesians)
-            #print("CARTESIAN:", cartesians, "\n")
-            new_row.append(cartesians)
-        return new_row
+    def _find_lhs_from_rhs(self, rules, rhs_rule):
+        temp_lhs = list()
+        for lhs in rules:
+            if rhs_rule in rules[lhs]:
+                temp_lhs.append(lhs)
+        return temp_lhs
+    
+    def _address_element(self, row, strings, index):
+        print(row, " -> ", strings, " -> ", index)
+        print(self.mem)
+        factors = list()
+        for col, string in enumerate(strings):
+            row_number = len(string)
+            factor = self.table_rows[row_number][index:index+1]
+            factors.append(factor)
+            print("STRING: ", string, "ROW: ", row_number, " COL: ", col, " INDEX: ", index)
 
-    def _find_cells(self):
-        for row in self.strings_of_rows:
-            for substring in self.strings_of_rows[row]:
-                for symbols in substring:
-                    cartesian_productions = self._bottom_to_top(substring)
-                    for productions in cartesian_productions:
-                        if row == 1:
-                            self.table_rows[1] += productions
-                        else:
-                            results = list()
-                            for prod in productions:
-                                # print("Prod: ", prod)
-                                output = CNF()._find_lhs_from_rhs(prod)
-                                if output not in self.table_rows[row]:
-                                    self.table_rows[row] += [output]
-                        #print(f"ROW{row}: ", self.table_rows[row])
-            print("\n")
+        print("FACTORS: ", factors)
+        cartesian = self._cartesian_product(factors[0], factors[1])
+        print("CARTES:", cartesian)
+        result = list()
+        for product in cartesian:
+            lhs = self._find_lhs_from_rhs(self.cnf_rules, product)
+            print("PRODUCT: ", product, " LHS: ", lhs)
+            #print("Product: ", product, " ---> LHS: ", lhs, "\n")
+            if lhs not in result:
+                result += lhs
+            result = list(set(result))
+        self.table_rows[row].insert(index, result)
+        
         print(self.table_rows)
+
+    def bottom_up(self):
+        print(self.strings_of_rows)
+        for row in self.strings_of_rows:
+            for index, strings in enumerate(self.strings_of_rows[row]):
+                column = index
+                if(row == 1):
+                    lhs = self._find_lhs_from_rhs(self.cnf_rules, strings[0])
+                    self.table_rows[row].append(lhs)
+                else:
+                    self._address_element(row, strings, index)
+                    #if(len(symbol) == 1):
+                    #    lhs = self._find_lhs_from_rhs(self.cnf_rules, symbol)
+                    #    self.table_rows[row].append(lhs)
 
 if __name__ == '__main__':
     Parser()

@@ -309,10 +309,3 @@ class CNF(object):
         self.rules[new_rule_lhs] = [new_production]
     # END OF LONGER PRODUCTIONS
     #-----------------------------------------------
-
-    def _find_lhs_from_rhs(self, rhs_rule):
-        temp_lhs = list()
-        for lhs in self.rules.keys():
-            if rhs_rule in self.rules[lhs]:
-                temp_lhs.append(lhs)
-        return temp_lhs
