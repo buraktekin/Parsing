@@ -1,4 +1,3 @@
 S -> A S A | a B
 A -> B | S
 B -> b | ε
-C -> A S | A B c | c
